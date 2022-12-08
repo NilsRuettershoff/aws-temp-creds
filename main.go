@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -24,6 +25,7 @@ type Core struct {
 	mfa      string
 	credName string
 	credFile string
+	sessName string
 	cfg      *ini.File
 }
 
@@ -41,6 +43,7 @@ func main() {
 	flag.StringVar(&c.token, "token", "000000", "mfa temp token")
 	flag.StringVar(&c.mfa, "mfa", "", "mfa arn")
 	flag.StringVar(&c.credName, "cred-name", "", "the name of the credentials to use ")
+	flag.StringVar(&c.sessName, "session-name", "notset", "optional: set custom session name")
 	flag.Parse()
 	c.checkToken()
 	failIfNotSet(&c.role, "please define role")
@@ -86,12 +89,23 @@ func (c *Core) getAndWriteTempCreds() (err error) {
 	}
 	username = usr.Username
 
+	// on coparate windows machines usernames can contain '\' which is not allowed in sessioname
+	b := "\\"
+	if strings.Contains(username, b) {
+		parts := strings.Split(username, b)
+		username = parts[len(parts)-1]
+	}
+
+	if c.sessName == "notset" || c.sessName == "" {
+		c.sessName = fmt.Sprintf("%sSession", username)
+	}
+
 	input := &sts.AssumeRoleInput{
 		DurationSeconds: aws.Int64(3600),
 		SerialNumber:    aws.String(c.mfa),
 		TokenCode:       aws.String(c.token),
 		RoleArn:         aws.String(c.role),
-		RoleSessionName: aws.String(fmt.Sprintf("%sSession", username)),
+		RoleSessionName: aws.String(c.sessName),
 	}
 	svc := sts.New(s)
 	result, err := svc.AssumeRole(input)
