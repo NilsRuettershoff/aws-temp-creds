@@ -26,6 +26,7 @@ type Core struct {
 	credName string
 	credFile string
 	sessName string
+	duration int
 	cfg      *ini.File
 }
 
@@ -44,6 +45,7 @@ func main() {
 	flag.StringVar(&c.mfa, "mfa", "", "mfa arn")
 	flag.StringVar(&c.credName, "cred-name", "", "the name of the credentials to use ")
 	flag.StringVar(&c.sessName, "session-name", "notset", "optional: set custom session name")
+	flag.IntVar(&c.duration, "duration", 3600, "optional: sets session duration")
 	flag.Parse()
 	c.checkToken()
 	failIfNotSet(&c.role, "please define role")
@@ -101,7 +103,7 @@ func (c *Core) getAndWriteTempCreds() (err error) {
 	}
 
 	input := &sts.AssumeRoleInput{
-		DurationSeconds: aws.Int64(3600),
+		DurationSeconds: aws.Int64(int64(c.duration)),
 		SerialNumber:    aws.String(c.mfa),
 		TokenCode:       aws.String(c.token),
 		RoleArn:         aws.String(c.role),
